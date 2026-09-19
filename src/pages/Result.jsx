@@ -1,45 +1,56 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import {
+  ArrowLeft,
   CheckCircle2,
   XCircle,
   Trophy,
-  ArrowLeft,
-  RotateCcw,
-  BarChart3,
   Clock3,
-  Target
+  Target,
+  RotateCcw,
+  Home,
+  BarChart3
 } from "lucide-react";
-import axios from "axios";
 
-function Result() {
-  const location = useLocation();
-  const navigate = useNavigate();
+const Result = () => {
   const { attemptId } = useParams();
+  const navigate = useNavigate();
 
-  const token = sessionStorage.getItem("quizhub_token");
+  const [quiz, setQuiz] = useState(null);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [result, setResult] = useState(location.state?.result || null);
-  const [quiz, setQuiz] = useState(location.state?.quiz || null);
-  const [loading, setLoading] = useState(
-    !location.state?.result || !location.state?.quiz
-  );
+  const formatAnswer = answer => {
+    if (answer === null || answer === undefined || answer === "") {
+      return "Not answered";
+    }
+
+    if (Array.isArray(answer)) {
+      return answer.length
+        ? answer.join(", ")
+        : "Not answered";
+    }
+
+    if (typeof answer === "boolean") {
+      return answer ? "True" : "False";
+    }
+
+    return String(answer);
+  };
 
   useEffect(() => {
-    const loadResult = async () => {
-      if (location.state?.result && location.state?.quiz) {
-        setResult(location.state.result);
-        setQuiz(location.state.quiz);
-        setLoading(false);
-        return;
-      }
-
-      if (!attemptId || !token) {
-        setLoading(false);
-        return;
-      }
-
+    const fetchResult = async () => {
       try {
+        const token = sessionStorage.getItem("quizhub_token");
+
+        if (!attemptId || !token) {
+          setError("Unable to load result");
+          setLoading(false);
+          return;
+        }
+
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/api/attempts/${attemptId}`,
           {
@@ -49,44 +60,57 @@ function Result() {
           }
         );
 
-        setResult(response.data.result);
         setQuiz(response.data.quiz);
-      } catch (error) {
-        console.error(error);
+        setResult(response.data.result);
+      } catch (err) {
+        setError(
+          err.response?.data?.message ||
+            "Unable to load quiz result"
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    loadResult();
-  }, [attemptId, location.state, token]);
+    fetchResult();
+  }, [attemptId]);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-sky-200 dark:bg-slate-950">
-        <div className="rounded-3xl bg-white px-8 py-6 text-slate-700 shadow-lg dark:bg-slate-900 dark:text-slate-200">
-          Loading result...
+      <div className="min-h-screen bg-slate-50 px-6 py-12 text-slate-900 dark:bg-slate-950 dark:text-white">
+        <div className="mx-auto max-w-5xl">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 w-48 rounded-lg bg-slate-200 dark:bg-slate-800" />
+            <div className="h-48 rounded-3xl bg-white dark:bg-slate-900" />
+            <div className="h-64 rounded-3xl bg-white dark:bg-slate-900" />
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!result || !quiz) {
+  if (error || !quiz || !result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-sky-200 px-6 dark:bg-slate-950">
-        <div className="w-full max-w-md rounded-3xl border border-sky-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-          <h1 className="text-2xl font-bold">
-            Result not found
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <XCircle
+            className="mx-auto mb-4 text-red-500"
+            size={48}
+          />
+
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Result unavailable
           </h1>
 
-          <p className="mt-3 text-slate-600 dark:text-slate-400">
-            Your quiz result could not be loaded.
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            {error || "We couldn't load this quiz result."}
           </p>
 
           <Link
             to="/dashboard"
-            className="mt-6 inline-flex rounded-xl bg-sky-600 px-5 py-3 font-semibold text-white transition hover:bg-sky-700"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-600"
           >
+            <Home size={17} />
             Back to Dashboard
           </Link>
         </div>
@@ -94,506 +118,404 @@ function Result() {
     );
   }
 
+  const percentage = result.totalPoints
+    ? Math.round(
+        (result.score / result.totalPoints) * 100
+      )
+    : 0;
+
   const correctCount = result.answers.filter(
     answer => answer.isCorrect
   ).length;
 
-  const incorrectCount =
-    result.answers.length - correctCount;
+  const incorrectCount = result.answers.filter(
+    answer => !answer.isCorrect
+  ).length;
 
   const totalTime = result.answers.reduce(
-    (total, answer) =>
-      total + (Number(answer.timeTaken) || 0),
+    (sum, answer) =>
+      sum + (answer.timeTaken || 0),
     0
   );
 
-  const answeredQuestions = result.answers.filter(
-    answer =>
-      Number(answer.timeTaken) > 0 ||
-      answer.answer
-  ).length;
-
-  const averageTime = answeredQuestions
-    ? totalTime / answeredQuestions
+  const averageTime = result.answers.length
+    ? Math.round(totalTime / result.answers.length)
     : 0;
 
-  const fastestTime = result.answers.length
-    ? Math.min(
-        ...result.answers.map(
-          answer => Number(answer.timeTaken) || 0
-        )
-      )
-    : 0;
-
-  const slowestTime = result.answers.length
-    ? Math.max(
-        ...result.answers.map(
-          answer => Number(answer.timeTaken) || 0
-        )
-      )
-    : 0;
-
-  const accuracy = quiz.questions.length
-    ? Math.round(
-        (correctCount / quiz.questions.length) * 100
-      )
-    : 0;
-
-  const formatTime = seconds => {
-    const value = Math.round(seconds);
-
-    if (value < 60) {
-      return `${value}s`;
+  const getPerformanceMessage = () => {
+    if (percentage >= 90) {
+      return "Excellent performance!";
     }
 
-    const minutes = Math.floor(value / 60);
-    const remainingSeconds = value % 60;
+    if (percentage >= 75) {
+      return "Great work!";
+    }
 
-    return remainingSeconds
-      ? `${minutes}m ${remainingSeconds}s`
-      : `${minutes}m`;
+    if (percentage >= 60) {
+      return "Good effort!";
+    }
+
+    if (percentage >= 40) {
+      return "Keep practicing!";
+    }
+
+    return "There's room to improve!";
   };
 
-  const formatAnswer = answer => {
-    if (Array.isArray(answer)) {
-      return answer.length
-        ? answer.join(", ")
-        : "Not answered";
-    }
-
-    if (
-      answer === null ||
-      answer === undefined ||
-      String(answer).trim() === ""
-    ) {
-      return "Not answered";
-    }
-
-    if (
-      String(answer).toLowerCase() === "true"
-    ) {
-      return "True";
-    }
-
-    if (
-      String(answer).toLowerCase() === "false"
-    ) {
-      return "False";
-    }
-
-    return String(answer);
+  const handleRetake = () => {
+    navigate(`/quiz/${quiz.quizId}`);
   };
 
   return (
-    <div className="min-h-screen bg-sky-200 text-slate-900 dark:bg-slate-950 dark:text-white">
-      <header className="border-b border-sky-300 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <Link
-            to="/"
-            className="text-2xl font-bold tracking-tight"
-          >
-            Quiz<span className="text-sky-600 dark:text-sky-400">
-              Hub
-            </span>
-          </Link>
-
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
+      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-sky-600 dark:text-slate-300 dark:hover:text-sky-400"
+            className="flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-sky-500 dark:text-slate-300 dark:hover:text-sky-400"
           >
-            <ArrowLeft size={17} />
+            <ArrowLeft size={18} />
             Dashboard
           </Link>
+
+          <div className="text-right">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              {quiz.title}
+            </p>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Quiz ID: {quiz.quizId}
+            </p>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <section className="rounded-[2rem] border border-sky-300 bg-white p-8 text-center shadow-lg shadow-sky-300/20 md:p-12 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900 dark:text-sky-300">
-            <Trophy size={38} />
-          </div>
-
-          <p className="mt-7 text-sm font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-sky-400">
-            Quiz Completed
+      <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-10">
+        <div className="mb-8">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-sky-500">
+            Quiz Review
           </p>
 
-          <h1 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
-            {quiz.title}
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            {getPerformanceMessage()}
           </h1>
 
-          <div className="mx-auto mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl bg-sky-50 p-5 dark:bg-slate-800">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Score
-              </p>
+          <p className="mt-2 text-slate-500 dark:text-slate-400">
+            Here is a detailed breakdown of your performance.
+          </p>
+        </div>
 
-              <p className="mt-2 text-3xl font-black text-sky-600 dark:text-sky-400">
-                {result.score}
-                <span className="text-lg font-medium text-slate-400">
-                  /{result.totalPoints}
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="border-b border-slate-200 px-6 py-8 dark:border-slate-800 sm:px-8">
+            <div className="flex flex-col items-center gap-6 sm:flex-row">
+              <div className="flex h-32 w-32 shrink-0 flex-col items-center justify-center rounded-full border-8 border-sky-100 bg-sky-50 dark:border-sky-950 dark:bg-sky-950/40">
+                <span className="text-3xl font-bold text-sky-600 dark:text-sky-400">
+                  {percentage}%
                 </span>
+
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Score
+                </span>
+              </div>
+
+              <div className="flex-1 text-center sm:text-left">
+                <div className="flex items-center justify-center gap-2 sm:justify-start">
+                  <Trophy
+                    size={22}
+                    className="text-amber-500"
+                  />
+
+                  <h2 className="text-xl font-bold">
+                    Performance Overview
+                  </h2>
+                </div>
+
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  You scored{" "}
+                  <span className="font-semibold text-slate-800 dark:text-white">
+                    {result.score}
+                  </span>{" "}
+                  out of{" "}
+                  <span className="font-semibold text-slate-800 dark:text-white">
+                    {result.totalPoints}
+                  </span>{" "}
+                  points.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 divide-x divide-y border-b border-slate-200 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-4 sm:divide-y-0">
+            <div className="p-5 text-center">
+              <Target
+                className="mx-auto mb-2 text-sky-500"
+                size={21}
+              />
+
+              <p className="text-2xl font-bold">
+                {result.score}
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Points
               </p>
             </div>
 
-            <div className="rounded-2xl bg-sky-50 p-5 dark:bg-slate-800">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Percentage
+            <div className="p-5 text-center">
+              <CheckCircle2
+                className="mx-auto mb-2 text-emerald-500"
+                size={21}
+              />
+
+              <p className="text-2xl font-bold">
+                {correctCount}
               </p>
 
-              <p className="mt-2 text-3xl font-black">
-                {result.percentage}%
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-sky-50 p-5 dark:bg-slate-800">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Correct
               </p>
+            </div>
 
-              <p className="mt-2 text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                {correctCount}/{quiz.questions.length}
+            <div className="p-5 text-center">
+              <XCircle
+                className="mx-auto mb-2 text-red-500"
+                size={21}
+              />
+
+              <p className="text-2xl font-bold">
+                {incorrectCount}
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Incorrect
+              </p>
+            </div>
+
+            <div className="p-5 text-center">
+              <Clock3
+                className="mx-auto mb-2 text-violet-500"
+                size={21}
+              />
+
+              <p className="text-2xl font-bold">
+                {averageTime}s
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Avg. Time
               </p>
             </div>
           </div>
 
-          <div className="mt-8 flex justify-center gap-6 text-sm">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 size={17} />
-              {correctCount} correct
-            </div>
+          <div className="px-6 py-6 sm:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              {quiz.allowRetakes && (
+                <button
+                  onClick={handleRetake}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-600"
+                >
+                  <RotateCcw size={17} />
+                  Retake Quiz
+                </button>
+              )}
 
-            <div className="flex items-center gap-2 text-red-500 dark:text-red-400">
-              <XCircle size={17} />
-              {incorrectCount} incorrect
-            </div>
-          </div>
-
-          <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-            {quiz.allowRetakes && (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`/quiz/${quiz.quizId}`)
-                }
-                className="flex items-center justify-center gap-2 rounded-xl border border-sky-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-sky-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+              <Link
+                to={`/leaderboard/${quiz.quizId}`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               >
-                <RotateCcw size={17} />
-                Try Again
-              </button>
-            )}
+                <Trophy size={17} />
+                Leaderboard
+              </Link>
 
-            <Link
-              to={`/leaderboard/${quiz.quizId}`}
-              className="flex items-center justify-center gap-2 rounded-xl border border-sky-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-sky-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <BarChart3 size={17} />
-              Leaderboard
-            </Link>
-
-            <Link
-              to="/dashboard"
-              className="flex items-center justify-center rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white transition hover:bg-sky-700"
-            >
-              Back to Dashboard
-            </Link>
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Home size={17} />
+                Dashboard
+              </Link>
+            </div>
           </div>
         </section>
 
-        <section className="mt-8">
+        <section className="mt-10">
           <div className="mb-5">
-            <p className="text-sm font-medium text-sky-700 dark:text-sky-400">
-              Insights
-            </p>
-
-            <h2 className="mt-1 text-2xl font-bold">
-              Performance overview
-            </h2>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
-                <Clock3 size={21} />
-              </div>
-
-              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
-                Total time
-              </p>
-
-              <p className="mt-1 text-2xl font-bold">
-                {formatTime(totalTime)}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
-                <Clock3 size={21} />
-              </div>
-
-              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
-                Average time
-              </p>
-
-              <p className="mt-1 text-2xl font-bold">
-                {formatTime(averageTime)}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
-                <Target size={21} />
-              </div>
-
-              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
-                Accuracy
-              </p>
-
-              <p className="mt-1 text-2xl font-bold">
-                {accuracy}%
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
-                <Clock3 size={21} />
-              </div>
-
-              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
-                Fastest answer
-              </p>
-
-              <p className="mt-1 text-2xl font-bold">
-                {formatTime(fastestTime)}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-[2rem] border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900 md:p-8">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-sky-700 dark:text-sky-400">
-                Speed analysis
-              </p>
-
-              <h2 className="mt-1 text-2xl font-bold">
-                Time per question
-              </h2>
-            </div>
-
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Fastest {formatTime(fastestTime)} · Slowest{" "}
-              {formatTime(slowestTime)}
-            </p>
-          </div>
-
-          <div className="mt-7 space-y-5">
-            {quiz.questions.map(
-              (question, index) => {
-                const answer = result.answers.find(
-                  item =>
-                    item.questionId ===
-                    question._id
-                );
-
-                const time =
-                  Number(answer?.timeTaken) || 0;
-
-                const width =
-                  slowestTime > 0
-                    ? Math.max(
-                        (time /
-                          slowestTime) *
-                          100,
-                        4
-                      )
-                    : 4;
-
-                return (
-                  <div key={question._id}>
-                    <div className="mb-2 flex items-center justify-between gap-4">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-xs font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-400">
-                          {index + 1}
-                        </span>
-
-                        <span className="truncate text-sm font-medium">
-                          Question {index + 1}
-                        </span>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-2 text-sm">
-                        {answer?.isCorrect ? (
-                          <CheckCircle2
-                            size={16}
-                            className="text-emerald-500"
-                          />
-                        ) : (
-                          <XCircle
-                            size={16}
-                            className="text-red-500"
-                          />
-                        )}
-
-                        <span className="font-semibold">
-                          {formatTime(time)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                      <div
-                        className={`h-full rounded-full ${
-                          answer?.isCorrect
-                            ? "bg-emerald-400"
-                            : "bg-red-400"
-                        }`}
-                        style={{
-                          width: `${width}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              }
-            )}
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-5 text-xs text-slate-500 dark:text-slate-400">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-              Correct
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-              Incorrect
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8">
-          <div className="mb-5">
-            <p className="text-sm font-medium text-sky-700 dark:text-sky-400">
+            <p className="text-sm font-semibold uppercase tracking-wider text-sky-500">
               Review
             </p>
 
             <h2 className="mt-1 text-2xl font-bold">
-              Answer breakdown
+              Answer Breakdown
             </h2>
           </div>
 
-          <div className="space-y-4">
-            {quiz.questions.map(
-              (question, index) => {
-                const answer = result.answers.find(
-                  item =>
-                    item.questionId ===
-                    question._id
-                );
+          <div className="space-y-5">
+            {quiz.questions.map((question, index) => {
+              const submittedAnswer = result.answers.find(
+                answer =>
+                  answer.questionId.toString() ===
+                  question._id.toString()
+              );
 
-                return (
-                  <div
-                    key={question._id}
-                    className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                          answer?.isCorrect
-                            ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
-                            : "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
-                        }`}
-                      >
-                        {answer?.isCorrect ? (
-                          <CheckCircle2 size={20} />
-                        ) : (
-                          <XCircle size={20} />
-                        )}
-                      </div>
+              const userAnswer =
+                submittedAnswer?.answer ?? null;
 
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                          Question {index + 1}
-                        </p>
+              const isCorrect =
+                submittedAnswer?.isCorrect ?? false;
 
-                        <h3 className="mt-1 text-lg font-semibold">
-                          {question.question}
-                        </h3>
+              const pointsEarned =
+                submittedAnswer?.pointsEarned ?? 0;
 
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          <div
-                            className={`rounded-2xl p-4 ${
-                              answer?.isCorrect
-                                ? "bg-emerald-50 dark:bg-emerald-950/30"
-                                : "bg-red-50 dark:bg-red-950/30"
-                            }`}
-                          >
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Your Answer
-                            </p>
+              const timeTaken =
+                submittedAnswer?.timeTaken ?? 0;
 
-                            <p
-                              className={`mt-2 font-semibold ${
-                                answer?.isCorrect
-                                  ? "text-emerald-700 dark:text-emerald-400"
-                                  : "text-red-700 dark:text-red-400"
-                              }`}
-                            >
-                              {formatAnswer(
-                                answer?.answer
-                              )}
-                            </p>
-                          </div>
+              return (
+                <article
+                  key={question._id}
+                  className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                        isCorrect
+                          ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400"
+                          : "bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400"
+                      }`}
+                    >
+                      {isCorrect ? (
+                        <CheckCircle2 size={23} />
+                      ) : (
+                        <XCircle size={23} />
+                      )}
+                    </div>
 
-                          <div className="rounded-2xl bg-sky-50 p-4 dark:bg-slate-800">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Correct Answer
-                            </p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        Question {index + 1}
+                      </p>
 
-                            <p className="mt-2 font-semibold text-sky-700 dark:text-sky-300">
-                              {formatAnswer(
-                                question.correctAnswer
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              Points earned
-                            </p>
-
-                            <p className="mt-1 font-medium">
-                              {answer?.pointsEarned ||
-                                0}{" "}
-                              / {question.points}
-                            </p>
-                          </div>
-
-                          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              Time taken
-                            </p>
-
-                            <p className="mt-1 font-medium">
-                              {formatTime(
-                                answer?.timeTaken ||
-                                  0
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      <h3 className="mt-1 text-lg font-semibold leading-relaxed text-slate-900 dark:text-white">
+                        {question.question}
+                      </h3>
                     </div>
                   </div>
-                );
-              }
-            )}
+
+                  <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                    <div
+                      className={`rounded-2xl p-5 ${
+                        isCorrect
+                          ? "bg-emerald-50 dark:bg-emerald-950/30"
+                          : "bg-red-50 dark:bg-red-950/30"
+                      }`}
+                    >
+                      <p
+                        className={`text-xs font-semibold uppercase tracking-wider ${
+                          isCorrect
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-600 dark:text-red-400"
+                        }`}
+                      >
+                        Your Answer
+                      </p>
+
+                      <p
+                        className={`mt-2 break-words text-base font-semibold ${
+                          isCorrect
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-red-700 dark:text-red-300"
+                        }`}
+                      >
+                        {formatAnswer(userAnswer)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-sky-50 p-5 dark:bg-sky-950/30">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                        Correct Answer
+                      </p>
+
+                      <p className="mt-2 break-words text-base font-semibold text-sky-700 dark:text-sky-300">
+                        {formatAnswer(question.correctAnswer)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Points earned
+                      </p>
+
+                      <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
+                        {pointsEarned} / {question.points}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Time taken
+                      </p>
+
+                      <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
+                        {timeTaken}s
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
+              <BarChart3 size={22} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold">
+                Speed Analysis
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                You spent an average of{" "}
+                <span className="font-semibold text-slate-800 dark:text-white">
+                  {averageTime} seconds
+                </span>{" "}
+                per question.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            <div
+              className="h-full rounded-full bg-sky-500 transition-all"
+              style={{
+                width: `${Math.min(
+                  (averageTime /
+                    Math.max(
+                      quiz.timePerQuestion || 20,
+                      1
+                    )) *
+                    100,
+                  100
+                )}%`
+              }}
+            />
+          </div>
+
+          <div className="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Faster</span>
+
+            <span>
+              {quiz.timePerQuestion || 20}s allowed
+            </span>
           </div>
         </section>
       </main>
     </div>
   );
-}
+};
 
 export default Result;
