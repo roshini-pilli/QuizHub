@@ -22,7 +22,7 @@ import {
 import ThemeToggle from "../components/ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 
-const Dashboard = () => {
+const Dashboard = ({ darkMode, setDarkMode }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -219,7 +219,10 @@ const Dashboard = () => {
           </button>
 
           <div className="flex items-center gap-3">
-            <ThemeToggle />
+            <ThemeToggle
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+            />
 
             <div className="hidden sm:block text-right">
               <p className="text-sm font-semibold text-slate-900 dark:text-white">
