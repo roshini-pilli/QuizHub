@@ -1,23 +1,32 @@
-import nodemailer from "nodemailer";
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const sendEmail = async (to, subject, text) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+  await axios.post(
+    "https://api.brevo.com/v3/smtp/email",
+    {
+      sender: {
+        name: "QuizHub",
+        email: process.env.EMAIL_USER
+      },
+      to: [
+        {
+          email: to
+        }
+      ],
+      subject,
+      textContent: text
+    },
+    {
+      headers: {
+        accept: "application/json",
+        "api-key": process.env.BREVO_API_KEY,
+        "content-type": "application/json"
+      }
     }
-  });
-
-  await transporter.sendMail({
-    from: `"QuizHub" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    text
-  });
+  );
 };
 
 export default sendEmail;
