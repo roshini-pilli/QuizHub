@@ -26,7 +26,7 @@ function QuizRoom() {
         const token = sessionStorage.getItem("quizhub_token");
 
         const response = await axios.post(
-          "http://localhost:5000/api/attempts/start",
+          `${import.meta.env.VITE_API_URL}/api/attempts/start`,
           {
             quizId: quizId.toUpperCase()
           },
@@ -211,7 +211,7 @@ function QuizRoom() {
       }));
 
       const response = await axios.post(
-        "http://localhost:5000/api/attempts/submit",
+        `${import.meta.env.VITE_API_URL}/api/attempts/submit`,
         {
           attemptId,
           answers: formattedAnswers

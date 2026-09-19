@@ -41,7 +41,7 @@ function Result() {
 
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/attempts/${attemptId}`,
+          `${import.meta.env.VITE_API_URL}/api/attempts/${attemptId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`

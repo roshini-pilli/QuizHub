@@ -26,7 +26,7 @@ const Analytics = () => {
         const token = sessionStorage.getItem("quizhub_token");
 
         const response = await axios.get(
-          `http://localhost:5000/api/attempts/analytics/${quizId}`,
+          `${import.meta.env.VITE_API_URL}/api/attempts/analytics/${quizId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`

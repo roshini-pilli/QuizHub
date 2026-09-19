@@ -33,7 +33,7 @@ function EditQuiz() {
         const token = sessionStorage.getItem("quizhub_token");
 
         const response = await axios.get(
-          `http://localhost:5000/api/quizzes/mine/${quizId}`,
+          `${import.meta.env.VITE_API_URL}/api/quizzes/mine/${quizId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -556,7 +556,7 @@ function EditQuiz() {
       const token = sessionStorage.getItem("quizhub_token");
 
       await axios.put(
-        `http://localhost:5000/api/quizzes/${quizId}`,
+        `${import.meta.env.VITE_API_URL}/api/quizzes/${quizId}`,
         {
           title: quiz.title.trim(),
           questions: formattedQuestions,
@@ -1102,7 +1102,7 @@ function EditQuiz() {
                           )
                         }
                         onKeyDown={handleArrowNavigation}
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none dark:border-slate-700 dark:bg-slate-800"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800"
                       >
                         <option value="">
                           Select correct answer

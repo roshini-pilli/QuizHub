@@ -49,11 +49,11 @@ const Dashboard = () => {
 
         const [quizResponse, attemptResponse] = await Promise.all([
           axios.get(
-            "http://localhost:5000/api/quizzes/mine",
+            `${import.meta.env.VITE_API_URL}/api/quizzes/mine`,
             config
           ),
           axios.get(
-            "http://localhost:5000/api/attempts/history",
+            `${import.meta.env.VITE_API_URL}/api/attempts/history`,
             config
           )
         ]);
@@ -111,7 +111,7 @@ const Dashboard = () => {
       const token = sessionStorage.getItem("quizhub_token");
 
       await axios.delete(
-        `http://localhost:5000/api/quizzes/${quizId}`,
+        `${import.meta.env.VITE_API_URL}/api/quizzes/${quizId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -154,7 +154,7 @@ const Dashboard = () => {
       const token = sessionStorage.getItem("quizhub_token");
 
       await axios.delete(
-        "http://localhost:5000/api/auth/delete-account",
+        `${import.meta.env.VITE_API_URL}/api/auth/delete-account`,
         {
           headers: {
             Authorization: `Bearer ${token}`

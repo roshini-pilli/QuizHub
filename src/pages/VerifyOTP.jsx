@@ -41,7 +41,7 @@ function VerifyOTP({ darkMode, setDarkMode }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/verify-otp",
+        `${import.meta.env.VITE_API_URL}/api/auth/verify-otp`,
         {
           email,
           otp
@@ -68,7 +68,7 @@ function VerifyOTP({ darkMode, setDarkMode }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/resend-otp",
+        `${import.meta.env.VITE_API_URL}/api/auth/resend-otp`,
         {
           email
         }

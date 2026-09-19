@@ -20,7 +20,7 @@ function JoinQuiz({ darkMode, setDarkMode }) {
       const token = sessionStorage.getItem("quizhub_token");
 
       const response = await axios.post(
-        "http://localhost:5000/api/quizzes/join",
+        `${import.meta.env.VITE_API_URL}/api/quizzes/join`,
         {
           quizId: quizId.trim().toUpperCase()
         },

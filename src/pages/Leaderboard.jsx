@@ -20,7 +20,7 @@ function Leaderboard() {
         const [quizResponse, leaderboardResponse, historyResponse] =
           await Promise.all([
             axios.get(
-              `http://localhost:5000/api/quizzes/${quizId}`,
+              `${import.meta.env.VITE_API_URL}/api/quizzes/${quizId}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`
@@ -28,7 +28,7 @@ function Leaderboard() {
               }
             ),
             axios.get(
-              `http://localhost:5000/api/attempts/leaderboard/${quizId}`,
+              `${import.meta.env.VITE_API_URL}/api/attempts/leaderboard/${quizId}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`
@@ -36,7 +36,7 @@ function Leaderboard() {
               }
             ),
             axios.get(
-              "http://localhost:5000/api/attempts/history",
+              `${import.meta.env.VITE_API_URL}/api/attempts/history`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`
