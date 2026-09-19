@@ -77,11 +77,13 @@ const Result = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 px-6 py-12 text-slate-900 dark:bg-slate-950 dark:text-white">
+      <div className="min-h-screen bg-sky-50 px-6 py-12 text-slate-900 dark:bg-slate-950 dark:text-white">
         <div className="mx-auto max-w-5xl">
           <div className="animate-pulse space-y-6">
-            <div className="h-8 w-48 rounded-lg bg-slate-200 dark:bg-slate-800" />
+            <div className="h-8 w-48 rounded-lg bg-sky-100 dark:bg-slate-800" />
+
             <div className="h-48 rounded-3xl bg-white dark:bg-slate-900" />
+
             <div className="h-64 rounded-3xl bg-white dark:bg-slate-900" />
           </div>
         </div>
@@ -91,7 +93,7 @@ const Result = () => {
 
   if (error || !quiz || !result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center bg-sky-50 px-6 dark:bg-slate-950">
         <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <XCircle
             className="mx-auto mb-4 text-red-500"
@@ -167,8 +169,8 @@ const Result = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div className="min-h-screen bg-sky-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
+      <header className="border-b border-sky-100 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
           <Link
             to="/dashboard"
@@ -205,7 +207,7 @@ const Result = () => {
           </p>
         </div>
 
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="border-b border-slate-200 px-6 py-8 dark:border-slate-800 sm:px-8">
             <div className="flex flex-col items-center gap-6 sm:flex-row">
               <div className="flex h-32 w-32 shrink-0 flex-col items-center justify-center rounded-full border-8 border-sky-100 bg-sky-50 dark:border-sky-950 dark:bg-sky-950/40">
@@ -293,7 +295,7 @@ const Result = () => {
 
             <div className="p-5 text-center">
               <Clock3
-                className="mx-auto mb-2 text-violet-500"
+                className="mx-auto mb-2 text-sky-500"
                 size={21}
               />
 
@@ -372,7 +374,7 @@ const Result = () => {
               return (
                 <article
                   key={question._id}
-                  className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"
+                  className="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"
                 >
                   <div className="flex items-start gap-4">
                     <div
@@ -467,7 +469,7 @@ const Result = () => {
           </div>
         </section>
 
-        <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+        <section className="mt-10 rounded-3xl border border-sky-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
           <div className="flex items-start gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
               <BarChart3 size={22} />
@@ -488,7 +490,7 @@ const Result = () => {
             </div>
           </div>
 
-          <div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="mt-6 h-3 overflow-hidden rounded-full bg-sky-100 dark:bg-slate-800">
             <div
               className="h-full rounded-full bg-sky-500 transition-all"
               style={{
