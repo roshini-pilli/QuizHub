@@ -98,11 +98,74 @@ function CreateQuiz({ darkMode, setDarkMode }) {
       }
 
       if (question.type === "multiple") {
-        correctAnswer = Array.isArray(correctAnswer)
-          ? correctAnswer.map(answer =>
+        correctAnswer = Array.isArray(question.correctAnswer)
+          ? question.correctAnswer.map(answer =>
               answer === oldOption ? value : answer
             )
           : [""];
+      }
+
+      updated[questionIndex] = {
+        ...question,
+        options,
+        correctAnswer
+      };
+
+      return updated;
+    });
+  };
+
+  const addOption = questionIndex => {
+    setQuestions(previous => {
+      const updated = [...previous];
+      const question = updated[questionIndex];
+
+      if (question.options.length >= 6) {
+        return previous;
+      }
+
+      updated[questionIndex] = {
+        ...question,
+        options: [...question.options, ""]
+      };
+
+      return updated;
+    });
+  };
+
+  const removeOption = (questionIndex, optionIndex) => {
+    setQuestions(previous => {
+      const updated = [...previous];
+      const question = updated[questionIndex];
+
+      if (question.options.length <= 2) {
+        return previous;
+      }
+
+      const removedOption = question.options[optionIndex];
+
+      const options = question.options.filter(
+        (_, index) => index !== optionIndex
+      );
+
+      let correctAnswer = question.correctAnswer;
+
+      if (question.type === "single") {
+        if (correctAnswer === removedOption) {
+          correctAnswer = "";
+        }
+      }
+
+      if (question.type === "multiple") {
+        correctAnswer = Array.isArray(question.correctAnswer)
+          ? question.correctAnswer.filter(
+              answer => answer !== removedOption
+            )
+          : [""];
+        
+        if (correctAnswer.length === 0) {
+          correctAnswer = [""];
+        }
       }
 
       updated[questionIndex] = {
@@ -150,7 +213,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
         ? updated[questionIndex].correctAnswer
         : [];
 
-      if (currentAnswers.length >= 4) {
+      if (currentAnswers.length >= 6) {
         return previous;
       }
 
@@ -217,6 +280,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
     }
 
     const current = e.currentTarget;
+
     const section = current.closest(
       "[data-question-section]"
     );
@@ -344,9 +408,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
         points < 1
       ) {
         showError(
-          `Points for question ${
-            i + 1
-          } must be at least 1.`
+          `Points for question ${i + 1} must be at least 1.`
         );
         return;
       }
@@ -357,9 +419,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
       ) {
         if (question.options.length < 2) {
           showError(
-            `Question ${
-              i + 1
-            } must have at least 2 options.`
+            `Question ${i + 1} must have at least 2 options.`
           );
           return;
         }
@@ -370,9 +430,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
           )
         ) {
           showError(
-            `Please fill all options for question ${
-              i + 1
-            }.`
+            `Please fill all options for question ${i + 1}.`
           );
           return;
         }
@@ -387,9 +445,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
           trimmedOptions.length
         ) {
           showError(
-            `Options must be unique for question ${
-              i + 1
-            }.`
+            `Options must be unique for question ${i + 1}.`
           );
           return;
         }
@@ -403,9 +459,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
 
         if (!correctAnswer) {
           showError(
-            `Please select the correct answer for question ${
-              i + 1
-            }.`
+            `Please select the correct answer for question ${i + 1}.`
           );
           return;
         }
@@ -417,9 +471,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
 
         if (!options.includes(correctAnswer)) {
           showError(
-            `Correct answer for question ${
-              i + 1
-            } must match one of the options.`
+            `Correct answer for question ${i + 1} must match one of the options.`
           );
           return;
         }
@@ -450,9 +502,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
 
         if (correctAnswers.length === 0) {
           showError(
-            `Please select at least one correct answer for question ${
-              i + 1
-            }.`
+            `Please select at least one correct answer for question ${i + 1}.`
           );
           return;
         }
@@ -462,9 +512,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
           new Set(correctAnswers).size
         ) {
           showError(
-            `Please select each correct answer only once for question ${
-              i + 1
-            }.`
+            `Please select each correct answer only once for question ${i + 1}.`
           );
           return;
         }
@@ -481,9 +529,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
 
         if (invalidAnswer) {
           showError(
-            `Please select valid options for the correct answers in question ${
-              i + 1
-            }.`
+            `Please select valid options for the correct answers in question ${i + 1}.`
           );
           return;
         }
@@ -503,15 +549,11 @@ function CreateQuiz({ darkMode, setDarkMode }) {
 
       if (question.type === "true_false") {
         if (
-          question.correctAnswer !==
-            "true" &&
-          question.correctAnswer !==
-            "false"
+          question.correctAnswer !== "true" &&
+          question.correctAnswer !== "false"
         ) {
           showError(
-            `Please select True or False for question ${
-              i + 1
-            }.`
+            `Please select True or False for question ${i + 1}.`
           );
           return;
         }
@@ -537,9 +579,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
 
         if (!correctAnswer) {
           showError(
-            `Please enter the correct answer for question ${
-              i + 1
-            }.`
+            `Please enter the correct answer for question ${i + 1}.`
           );
           return;
         }
@@ -1024,9 +1064,15 @@ function CreateQuiz({ darkMode, setDarkMode }) {
                     </div>
                   ) : (
                     <div className="mt-5">
-                      <label className="text-sm font-semibold">
-                        Options
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-semibold">
+                          Options
+                        </label>
+
+                        <span className="text-xs font-medium text-slate-400">
+                          {question.options.length}/6 options
+                        </span>
+                      </div>
 
                       <div className="mt-3 grid gap-3">
                         {question.options.map(
@@ -1066,10 +1112,46 @@ function CreateQuiz({ darkMode, setDarkMode }) {
                                 }`}
                                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800"
                               />
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeOption(
+                                    questionIndex,
+                                    optionIndex
+                                  )
+                                }
+                                disabled={
+                                  question.options
+                                    .length <= 2
+                                }
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-30 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400"
+                                aria-label={`Remove option ${
+                                  optionIndex + 1
+                                }`}
+                              >
+                                <Trash2 size={17} />
+                              </button>
                             </div>
                           )
                         )}
                       </div>
+
+                      {question.options.length <
+                        6 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addOption(
+                              questionIndex
+                            )
+                          }
+                          className="mt-3 flex items-center gap-2 rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100 dark:border-slate-600 dark:bg-slate-800 dark:text-sky-300 dark:hover:bg-slate-700"
+                        >
+                          <Plus size={17} />
+                          Add Option
+                        </button>
+                      )}
 
                       <div className="mt-5">
                         <label className="text-sm font-semibold">
@@ -1197,7 +1279,7 @@ function CreateQuiz({ darkMode, setDarkMode }) {
                             ) &&
                               question
                                 .correctAnswer
-                                .length < 4 && (
+                                .length < 6 && (
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1239,13 +1321,22 @@ function CreateQuiz({ darkMode, setDarkMode }) {
                             </option>
 
                             {question.options.map(
-                              option => (
+                              (
+                                option,
+                                optionIndex
+                              ) => (
                                 <option
-                                  key={option}
+                                  key={
+                                    optionIndex
+                                  }
                                   value={option}
+                                  disabled={!option.trim()}
                                 >
                                   {option ||
-                                    "Empty option"}
+                                    `Option ${
+                                      optionIndex +
+                                      1
+                                    }`}
                                 </option>
                               )
                             )}
