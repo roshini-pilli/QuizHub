@@ -154,6 +154,36 @@ function Result() {
       : `${minutes}m`;
   };
 
+  const formatAnswer = answer => {
+    if (Array.isArray(answer)) {
+      return answer.length
+        ? answer.join(", ")
+        : "Not answered";
+    }
+
+    if (
+      answer === null ||
+      answer === undefined ||
+      String(answer).trim() === ""
+    ) {
+      return "Not answered";
+    }
+
+    if (
+      String(answer).toLowerCase() === "true"
+    ) {
+      return "True";
+    }
+
+    if (
+      String(answer).toLowerCase() === "false"
+    ) {
+      return "False";
+    }
+
+    return String(answer);
+  };
+
   return (
     <div className="min-h-screen bg-sky-200 text-slate-900 dark:bg-slate-950 dark:text-white">
       <header className="border-b border-sky-300 bg-white dark:border-slate-700 dark:bg-slate-900">
@@ -162,7 +192,9 @@ function Result() {
             to="/"
             className="text-2xl font-bold tracking-tight"
           >
-            Quiz<span className="text-sky-600 dark:text-sky-400">Hub</span>
+            Quiz<span className="text-sky-600 dark:text-sky-400">
+              Hub
+            </span>
           </Link>
 
           <Link
@@ -240,7 +272,9 @@ function Result() {
             {quiz.allowRetakes && (
               <button
                 type="button"
-                onClick={() => navigate(`/quiz/${quiz.quizId}`)}
+                onClick={() =>
+                  navigate(`/quiz/${quiz.quizId}`)
+                }
                 className="flex items-center justify-center gap-2 rounded-xl border border-sky-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-sky-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 <RotateCcw size={17} />
@@ -354,63 +388,75 @@ function Result() {
           </div>
 
           <div className="mt-7 space-y-5">
-            {quiz.questions.map((question, index) => {
-              const answer = result.answers.find(
-                item => item.questionId === question._id
-              );
+            {quiz.questions.map(
+              (question, index) => {
+                const answer = result.answers.find(
+                  item =>
+                    item.questionId ===
+                    question._id
+                );
 
-              const time = Number(answer?.timeTaken) || 0;
+                const time =
+                  Number(answer?.timeTaken) || 0;
 
-              const width =
-                slowestTime > 0
-                  ? Math.max((time / slowestTime) * 100, 4)
-                  : 4;
+                const width =
+                  slowestTime > 0
+                    ? Math.max(
+                        (time /
+                          slowestTime) *
+                          100,
+                        4
+                      )
+                    : 4;
 
-              return (
-                <div key={question._id}>
-                  <div className="mb-2 flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-xs font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-400">
-                        {index + 1}
-                      </span>
+                return (
+                  <div key={question._id}>
+                    <div className="mb-2 flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-xs font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-400">
+                          {index + 1}
+                        </span>
 
-                      <span className="truncate text-sm font-medium">
-                        Question {index + 1}
-                      </span>
+                        <span className="truncate text-sm font-medium">
+                          Question {index + 1}
+                        </span>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2 text-sm">
+                        {answer?.isCorrect ? (
+                          <CheckCircle2
+                            size={16}
+                            className="text-emerald-500"
+                          />
+                        ) : (
+                          <XCircle
+                            size={16}
+                            className="text-red-500"
+                          />
+                        )}
+
+                        <span className="font-semibold">
+                          {formatTime(time)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2 text-sm">
-                      {answer?.isCorrect ? (
-                        <CheckCircle2
-                          size={16}
-                          className="text-emerald-500"
-                        />
-                      ) : (
-                        <XCircle
-                          size={16}
-                          className="text-red-500"
-                        />
-                      )}
-
-                      <span className="font-semibold">
-                        {formatTime(time)}
-                      </span>
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div
+                        className={`h-full rounded-full ${
+                          answer?.isCorrect
+                            ? "bg-emerald-400"
+                            : "bg-red-400"
+                        }`}
+                        style={{
+                          width: `${width}%`
+                        }}
+                      />
                     </div>
                   </div>
-
-                  <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                    <div
-                      className={`h-full rounded-full ${
-                        answer?.isCorrect
-                          ? "bg-emerald-400"
-                          : "bg-red-400"
-                      }`}
-                      style={{ width: `${width}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              }
+            )}
           </div>
 
           <div className="mt-7 flex flex-wrap gap-5 text-xs text-slate-500 dark:text-slate-400">
@@ -438,79 +484,111 @@ function Result() {
           </div>
 
           <div className="space-y-4">
-            {quiz.questions.map((question, index) => {
-              const answer = result.answers.find(
-                item => item.questionId === question._id
-              );
+            {quiz.questions.map(
+              (question, index) => {
+                const answer = result.answers.find(
+                  item =>
+                    item.questionId ===
+                    question._id
+                );
 
-              return (
-                <div
-                  key={question._id}
-                  className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900"
-                >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                        answer?.isCorrect
-                          ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
-                          : "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
-                      }`}
-                    >
-                      {answer?.isCorrect ? (
-                        <CheckCircle2 size={20} />
-                      ) : (
-                        <XCircle size={20} />
-                      )}
-                    </div>
+                return (
+                  <div
+                    key={question._id}
+                    className="rounded-3xl border border-sky-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                          answer?.isCorrect
+                            ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                            : "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
+                        }`}
+                      >
+                        {answer?.isCorrect ? (
+                          <CheckCircle2 size={20} />
+                        ) : (
+                          <XCircle size={20} />
+                        )}
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                        Question {index + 1}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                          Question {index + 1}
+                        </p>
 
-                      <h3 className="mt-1 text-lg font-semibold">
-                        {question.question}
-                      </h3>
+                        <h3 className="mt-1 text-lg font-semibold">
+                          {question.question}
+                        </h3>
 
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Your answer
-                          </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <div
+                            className={`rounded-2xl p-4 ${
+                              answer?.isCorrect
+                                ? "bg-emerald-50 dark:bg-emerald-950/30"
+                                : "bg-red-50 dark:bg-red-950/30"
+                            }`}
+                          >
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Your Answer
+                            </p>
 
-                          <p className="mt-1 font-medium">
-                            {Array.isArray(answer?.answer)
-                              ? answer.answer.join(", ")
-                              : answer?.answer || "Not answered"}
-                          </p>
-                        </div>
+                            <p
+                              className={`mt-2 font-semibold ${
+                                answer?.isCorrect
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-red-700 dark:text-red-400"
+                              }`}
+                            >
+                              {formatAnswer(
+                                answer?.answer
+                              )}
+                            </p>
+                          </div>
 
-                        <div className="rounded-xl bg-sky-50 p-3 dark:bg-slate-800">
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Points earned
-                          </p>
+                          <div className="rounded-2xl bg-sky-50 p-4 dark:bg-slate-800">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Correct Answer
+                            </p>
 
-                          <p className="mt-1 font-medium">
-                            {answer?.pointsEarned || 0} /{" "}
-                            {question.points}
-                          </p>
-                        </div>
+                            <p className="mt-2 font-semibold text-sky-700 dark:text-sky-300">
+                              {formatAnswer(
+                                question.correctAnswer
+                              )}
+                            </p>
+                          </div>
 
-                        <div className="rounded-xl bg-sky-50 p-3 dark:bg-slate-800">
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Time taken
-                          </p>
+                          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Points earned
+                            </p>
 
-                          <p className="mt-1 font-medium">
-                            {formatTime(answer?.timeTaken || 0)}
-                          </p>
+                            <p className="mt-1 font-medium">
+                              {answer?.pointsEarned ||
+                                0}{" "}
+                              / {question.points}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Time taken
+                            </p>
+
+                            <p className="mt-1 font-medium">
+                              {formatTime(
+                                answer?.timeTaken ||
+                                  0
+                              )}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              }
+            )}
           </div>
         </section>
       </main>

@@ -128,16 +128,21 @@ export const submitAttempt = async (req, res) => {
 
       if (question.type === "multiple") {
         const correct = [...question.correctAnswer].map(String);
+
         const selected = Array.isArray(submitted.answer)
           ? submitted.answer.map(String)
           : [];
 
         const correctSet = new Set(
-          correct.map(answer => answer.trim().toLowerCase())
+          correct.map(answer =>
+            answer.trim().toLowerCase()
+          )
         );
 
         const selectedSet = new Set(
-          selected.map(answer => answer.trim().toLowerCase())
+          selected.map(answer =>
+            answer.trim().toLowerCase()
+          )
         );
 
         let correctSelected = 0;
@@ -150,7 +155,8 @@ export const submitAttempt = async (req, res) => {
 
         pointsEarned =
           correctSet.size > 0
-            ? (correctSelected / correctSet.size) * question.points
+            ? (correctSelected / correctSet.size) *
+              question.points
             : 0;
 
         isCorrect =
@@ -158,10 +164,16 @@ export const submitAttempt = async (req, res) => {
           selectedSet.size === correctSet.size;
       } else {
         isCorrect =
-          String(submitted.answer).trim().toLowerCase() ===
-          String(question.correctAnswer).trim().toLowerCase();
+          String(submitted.answer)
+            .trim()
+            .toLowerCase() ===
+          String(question.correctAnswer)
+            .trim()
+            .toLowerCase();
 
-        pointsEarned = isCorrect ? question.points : 0;
+        pointsEarned = isCorrect
+          ? question.points
+          : 0;
       }
 
       score += pointsEarned;
@@ -233,6 +245,7 @@ export const getAttemptResult = async (req, res) => {
           type: question.type,
           question: question.question,
           options: question.options,
+          correctAnswer: question.correctAnswer,
           points: question.points
         }))
       },
@@ -416,51 +429,61 @@ export const getQuizAnalytics = async (req, res) => {
 
     const totalTimes = attempts.map(attempt =>
       attempt.answers.reduce(
-        (sum, answer) => sum + (answer.timeTaken || 0),
+        (sum, answer) =>
+          sum + (answer.timeTaken || 0),
         0
       )
     );
 
     const averageTime =
-      totalTimes.reduce((sum, time) => sum + time, 0) /
-      totalAttempts;
+      totalTimes.reduce(
+        (sum, time) => sum + time,
+        0
+      ) / totalAttempts;
 
-    const questionAnalytics = quiz.questions.map(
-      (question, index) => {
-        const questionAnswers = attempts
-          .flatMap(attempt => attempt.answers)
-          .filter(
-            answer =>
-              answer.questionId.toString() ===
-              question._id.toString()
-          );
+    const questionAnalytics =
+      quiz.questions.map(
+        (question, index) => {
+          const questionAnswers = attempts
+            .flatMap(attempt => attempt.answers)
+            .filter(
+              answer =>
+                answer.questionId.toString() ===
+                question._id.toString()
+            );
 
-        const correctAnswers = questionAnswers.filter(
-          answer => answer.isCorrect
-        ).length;
+          const correctAnswers =
+            questionAnswers.filter(
+              answer => answer.isCorrect
+            ).length;
 
-        const totalTime = questionAnswers.reduce(
-          (sum, answer) => sum + (answer.timeTaken || 0),
-          0
-        );
+          const totalTime =
+            questionAnswers.reduce(
+              (sum, answer) =>
+                sum + (answer.timeTaken || 0),
+              0
+            );
 
-        return {
-          questionNumber: index + 1,
-          questionId: question._id,
-          accuracy: questionAnswers.length
-            ? Math.round(
-                (correctAnswers / questionAnswers.length) * 100
-              )
-            : 0,
-          averageTime: questionAnswers.length
-            ? Math.round(
-                totalTime / questionAnswers.length
-              )
-            : 0,
-          pointsPossible: question.points
-        };
-      }
-    );
+          return {
+            questionNumber: index + 1,
+            questionId: question._id,
+            accuracy: questionAnswers.length
+              ? Math.round(
+                  (correctAnswers /
+                    questionAnswers.length) *
+                    100
+                )
+              : 0,
+            averageTime: questionAnswers.length
+              ? Math.round(
+                  totalTime /
+                    questionAnswers.length
+                )
+              : 0,
+            pointsPossible: question.points
+          };
+        }
+      );
 
     const scoreDistribution = [
       {
@@ -482,9 +505,12 @@ export const getQuizAnalytics = async (req, res) => {
     ];
 
     attempts.forEach(attempt => {
-      const percentage = attempt.totalPoints
-        ? (attempt.score / attempt.totalPoints) * 100
-        : 0;
+      const percentage =
+        attempt.totalPoints
+          ? (attempt.score /
+              attempt.totalPoints) *
+            100
+          : 0;
 
       if (percentage < 40) {
         scoreDistribution[0].count++;
@@ -506,13 +532,21 @@ export const getQuizAnalytics = async (req, res) => {
         totalAttempts,
         uniqueParticipants,
         averageScore: Number(
-          (totalScore / totalAttempts).toFixed(1)
+          (
+            totalScore /
+            totalAttempts
+          ).toFixed(1)
         ),
         averagePercentage: Math.round(
-          totalPercentage / totalAttempts
+          totalPercentage /
+            totalAttempts
         ),
-        highestPercentage: Math.round(highestPercentage),
-        averageTime: Math.round(averageTime),
+        highestPercentage: Math.round(
+          highestPercentage
+        ),
+        averageTime: Math.round(
+          averageTime
+        ),
         questionAnalytics,
         scoreDistribution
       }
