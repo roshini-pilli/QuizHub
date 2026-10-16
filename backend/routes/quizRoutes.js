@@ -1,3 +1,4 @@
+
 import express from "express";
 import {
   createQuiz,
@@ -6,13 +7,15 @@ import {
   getMyQuizzes,
   deleteQuiz,
   updateQuiz,
-  getMyQuiz
+  getMyQuiz,
+  generateAIQuestions
 } from "../controllers/quizController.js";
 import protect from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.post("/create", protect, createQuiz);
+router.post("/generate-ai", protect, generateAIQuestions);
 router.post("/join", protect, joinQuiz);
 router.get("/mine", protect, getMyQuizzes);
 router.get("/mine/:quizId", protect, getMyQuiz);

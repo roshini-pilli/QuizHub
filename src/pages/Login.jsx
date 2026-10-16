@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router-dom";
+
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Moon, Sun, ArrowLeft, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -6,11 +7,14 @@ import { useAuth } from "../context/AuthContext.jsx";
 function Login({ darkMode, setDarkMode }) {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const successMessage = location.state?.message || "";
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -41,9 +45,15 @@ function Login({ darkMode, setDarkMode }) {
     } catch (err) {
       const message = err.response?.data?.message;
 
-      if (message === "User not found") {
+      if (
+        message === "User not found" ||
+        message === "No account found with this email"
+      ) {
         setError("No account found with this email.");
-      } else if (message === "Invalid email or password") {
+      } else if (
+        message === "Invalid email or password" ||
+        message === "Wrong password"
+      ) {
         setError("Wrong password.");
       } else {
         setError(message || "Unable to log in.");
@@ -62,6 +72,7 @@ function Login({ darkMode, setDarkMode }) {
           </Link>
 
           <button
+            type="button"
             onClick={() => setDarkMode(!darkMode)}
             aria-label="Toggle theme"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-700 transition hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -87,15 +98,29 @@ function Login({ darkMode, setDarkMode }) {
                 <LogIn size={22} />
               </div>
 
-              <h1 className="mt-6 text-3xl font-bold">Welcome back</h1>
+              <h1 className="mt-6 text-3xl font-bold">
+                Welcome back
+              </h1>
 
               <p className="mt-2 text-slate-600 dark:text-slate-400">
                 Log in to continue to your QuizHub account.
               </p>
             </div>
 
+            {successMessage && (
+              <div
+                role="status"
+                className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-600 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-400"
+              >
+                {successMessage}
+              </div>
+            )}
+
             {error && (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+              <div
+                role="alert"
+                className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+              >
                 {error}
               </div>
             )}
@@ -111,6 +136,7 @@ function Login({ darkMode, setDarkMode }) {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
+                  autoComplete="email"
                   required
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-800 dark:focus:border-sky-500 dark:focus:ring-sky-900"
                 />
@@ -126,9 +152,19 @@ function Login({ darkMode, setDarkMode }) {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   required
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-800 dark:focus:border-sky-500 dark:focus:ring-sky-900"
                 />
+
+                <div className="mt-2 flex justify-end">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-semibold text-sky-700 transition hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-300"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
               </div>
 
               <button

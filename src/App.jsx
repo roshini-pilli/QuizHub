@@ -1,9 +1,12 @@
+
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import VerifyOTP from "./pages/VerifyOTP";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import CreateQuiz from "./pages/CreateQuiz";
 import JoinQuiz from "./pages/JoinQuiz";
@@ -68,6 +71,26 @@ const App = () => {
           path="/verify-otp"
           element={
             <VerifyOTP
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+            />
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={
+            <ForgotPassword
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+            />
+          }
+        />
+
+        <Route
+          path="/reset-password"
+          element={
+            <ResetPassword
               darkMode={darkMode}
               setDarkMode={setDarkMode}
             />

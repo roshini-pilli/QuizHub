@@ -6,7 +6,8 @@ import {
   getAttemptResult,
   getLeaderboard,
   getMyAttempts,
-  getQuizAnalytics
+  getQuizAnalytics,
+  getAIExplanation
 } from "../controllers/attemptController.js";
 
 import protect from "../middleware/authMiddleware.js";
@@ -22,6 +23,8 @@ router.get("/leaderboard/:quizId", protect, getLeaderboard);
 router.get("/history", protect, getMyAttempts);
 
 router.get("/analytics/:quizId", protect, getQuizAnalytics);
+
+router.post("/:attemptId/explanation", protect, getAIExplanation);
 
 router.get("/:attemptId", protect, getAttemptResult);
 

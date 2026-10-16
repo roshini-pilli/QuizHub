@@ -1,3 +1,4 @@
+
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, CheckCircle, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -10,6 +11,9 @@ function VerifyOTP({ darkMode, setDarkMode }) {
   const { setAuthData } = useAuth();
 
   const email = location.state?.email || "";
+  const purpose = location.state?.purpose || "signup";
+  const isPasswordReset = purpose === "password-reset";
+
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -32,7 +36,12 @@ function VerifyOTP({ darkMode, setDarkMode }) {
     setError("");
     setMessage("");
 
-    if (otp.length !== 6) {
+    if (!email) {
+      setError("Please start the process again.");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(otp)) {
       setError("Enter the 6-digit OTP.");
       return;
     }
@@ -40,16 +49,26 @@ function VerifyOTP({ darkMode, setDarkMode }) {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/verify-otp`,
-        {
-          email,
-          otp
-        }
-      );
+      if (isPasswordReset) {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/verify-reset-otp`,
+          { email, otp }
+        );
 
-      setAuthData(response.data.token, response.data.user);
-      navigate("/dashboard");
+        navigate("/reset-password", {
+          state: {
+            resetToken: response.data.resetToken
+          }
+        });
+      } else {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/verify-otp`,
+          { email, otp }
+        );
+
+        setAuthData(response.data.token, response.data.user);
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(
         err.response?.data?.message || "Unable to verify OTP."
@@ -60,18 +79,20 @@ function VerifyOTP({ darkMode, setDarkMode }) {
   };
 
   const handleResend = async () => {
-    if (!email || cooldown > 0) return;
+    if (!email || cooldown > 0 || resending) return;
 
     setError("");
     setMessage("");
     setResending(true);
 
     try {
+      const endpoint = isPasswordReset
+        ? "/api/auth/resend-reset-otp"
+        : "/api/auth/resend-otp";
+
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/resend-otp`,
-        {
-          email
-        }
+        `${import.meta.env.VITE_API_URL}${endpoint}`,
+        { email }
       );
 
       setMessage(response.data.message);
@@ -95,6 +116,7 @@ function VerifyOTP({ darkMode, setDarkMode }) {
           </Link>
 
           <button
+            type="button"
             onClick={() => setDarkMode(!darkMode)}
             aria-label="Toggle theme"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-700 transition hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -107,11 +129,11 @@ function VerifyOTP({ darkMode, setDarkMode }) {
       <main className="flex min-h-[calc(100vh-81px)] items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <Link
-            to="/signup"
+            to={isPasswordReset ? "/forgot-password" : "/signup"}
             className="mb-6 inline-flex items-center gap-2 text-sm text-slate-600 transition hover:text-sky-700 dark:text-slate-400 dark:hover:text-sky-400"
           >
             <ArrowLeft size={16} />
-            Back to signup
+            {isPasswordReset ? "Back to forgot password" : "Back to signup"}
           </Link>
 
           <div className="rounded-3xl border border-sky-300 bg-white p-8 shadow-lg shadow-sky-300/30 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30">
@@ -121,7 +143,7 @@ function VerifyOTP({ darkMode, setDarkMode }) {
               </div>
 
               <h1 className="mt-6 text-3xl font-bold">
-                Verify your email
+                {isPasswordReset ? "Verify reset code" : "Verify your email"}
               </h1>
 
               <p className="mt-2 text-slate-600 dark:text-slate-400">
@@ -134,7 +156,7 @@ function VerifyOTP({ darkMode, setDarkMode }) {
             </div>
 
             {error && (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+              <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -156,10 +178,9 @@ function VerifyOTP({ darkMode, setDarkMode }) {
                   inputMode="numeric"
                   maxLength={6}
                   value={otp}
-                  onChange={e =>
-                    setOtp(e.target.value.replace(/\D/g, ""))
-                  }
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
                   placeholder="Enter 6-digit OTP"
+                  autoComplete="one-time-code"
                   required
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-xl font-semibold tracking-[0.4em] outline-none transition placeholder:text-sm placeholder:tracking-normal placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-slate-700 dark:bg-slate-800 dark:focus:border-sky-500 dark:focus:ring-sky-900"
                 />
@@ -170,7 +191,11 @@ function VerifyOTP({ darkMode, setDarkMode }) {
                 disabled={loading || !email}
                 className="w-full rounded-xl bg-sky-600 px-5 py-3.5 font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Verifying..." : "Verify Email"}
+                {loading
+                  ? "Verifying..."
+                  : isPasswordReset
+                    ? "Verify Reset Code"
+                    : "Verify Email"}
               </button>
             </form>
 
@@ -194,12 +219,12 @@ function VerifyOTP({ darkMode, setDarkMode }) {
 
             {!email && (
               <p className="mt-5 text-center text-sm text-red-500">
-                Please start the signup process again.
+                Please start the process again.
               </p>
             )}
 
             <p className="mt-7 text-center text-sm text-slate-600 dark:text-slate-400">
-              Already have an account?{" "}
+              Remember your password?{" "}
               <Link
                 to="/login"
                 className="font-semibold text-sky-700 hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-300"

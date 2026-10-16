@@ -1,5 +1,6 @@
 import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/QuizAttempt.js";
+import Groq from "groq-sdk";
 
 export const startAttempt = async (req, res) => {
   try {
@@ -45,19 +46,22 @@ export const startAttempt = async (req, res) => {
         quiz: quiz._id,
         user: req.user._id,
         totalPoints: quiz.questions.reduce(
-          (total, question) => total + question.points,
+          (total, question) =>
+            total + question.points,
           0
         )
       });
     }
 
-    const safeQuestions = quiz.questions.map(question => ({
-      _id: question._id,
-      type: question.type,
-      question: question.question,
-      options: question.options,
-      points: question.points
-    }));
+    const safeQuestions = quiz.questions.map(
+      question => ({
+        _id: question._id,
+        type: question.type,
+        question: question.question,
+        options: question.options,
+        points: question.points
+      })
+    );
 
     res.json({
       attemptId: attempt._id,
@@ -73,6 +77,7 @@ export const startAttempt = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: error.message
     });
@@ -108,84 +113,94 @@ export const submitAttempt = async (req, res) => {
 
     let score = 0;
 
-    const evaluatedAnswers = attempt.quiz.questions.map(question => {
-      const submitted = answers.find(
-        answer => answer.questionId === question._id.toString()
-      );
+    const evaluatedAnswers =
+      attempt.quiz.questions.map(question => {
+        const submitted = answers.find(
+          answer =>
+            answer.questionId ===
+            question._id.toString()
+        );
 
-      if (!submitted) {
+        if (!submitted) {
+          return {
+            questionId: question._id,
+            answer: "",
+            isCorrect: false,
+            timeTaken: 0,
+            pointsEarned: 0
+          };
+        }
+
+        let isCorrect = false;
+        let pointsEarned = 0;
+
+        if (question.type === "multiple") {
+          const correct = Array.isArray(
+            question.correctAnswer
+          )
+            ? question.correctAnswer.map(String)
+            : [];
+
+          const selected =
+            Array.isArray(submitted.answer)
+              ? submitted.answer.map(String)
+              : [];
+
+          const correctSet = new Set(
+            correct.map(answer =>
+              answer.trim().toLowerCase()
+            )
+          );
+
+          const selectedSet = new Set(
+            selected.map(answer =>
+              answer.trim().toLowerCase()
+            )
+          );
+
+          let correctSelected = 0;
+
+          selectedSet.forEach(answer => {
+            if (correctSet.has(answer)) {
+              correctSelected++;
+            }
+          });
+
+          pointsEarned =
+            correctSet.size > 0
+              ? (correctSelected /
+                  correctSet.size) *
+                question.points
+              : 0;
+
+          isCorrect =
+            correctSelected === correctSet.size &&
+            selectedSet.size === correctSet.size;
+        } else {
+          isCorrect =
+            String(submitted.answer)
+              .trim()
+              .toLowerCase() ===
+            String(question.correctAnswer)
+              .trim()
+              .toLowerCase();
+
+          pointsEarned = isCorrect
+            ? question.points
+            : 0;
+        }
+
+        score += pointsEarned;
+
         return {
           questionId: question._id,
-          answer: "",
-          isCorrect: false,
-          timeTaken: 0,
-          pointsEarned: 0
+          answer: submitted.answer,
+          isCorrect,
+          timeTaken:
+            submitted.timeTaken || 0,
+          pointsEarned
         };
-      }
-
-      let isCorrect = false;
-      let pointsEarned = 0;
-
-      if (question.type === "multiple") {
-        const correct = [...question.correctAnswer].map(String);
-
-        const selected = Array.isArray(submitted.answer)
-          ? submitted.answer.map(String)
-          : [];
-
-        const correctSet = new Set(
-          correct.map(answer =>
-            answer.trim().toLowerCase()
-          )
-        );
-
-        const selectedSet = new Set(
-          selected.map(answer =>
-            answer.trim().toLowerCase()
-          )
-        );
-
-        let correctSelected = 0;
-
-        selectedSet.forEach(answer => {
-          if (correctSet.has(answer)) {
-            correctSelected++;
-          }
-        });
-
-        pointsEarned =
-          correctSet.size > 0
-            ? (correctSelected / correctSet.size) *
-              question.points
-            : 0;
-
-        isCorrect =
-          correctSelected === correctSet.size &&
-          selectedSet.size === correctSet.size;
-      } else {
-        isCorrect =
-          String(submitted.answer)
-            .trim()
-            .toLowerCase() ===
-          String(question.correctAnswer)
-            .trim()
-            .toLowerCase();
-
-        pointsEarned = isCorrect
-          ? question.points
-          : 0;
-      }
-
-      score += pointsEarned;
-
-      return {
-        questionId: question._id,
-        answer: submitted.answer,
-        isCorrect,
-        timeTaken: submitted.timeTaken || 0,
-        pointsEarned
-      };
-    });
+      });
 
     attempt.answers = evaluatedAnswers;
     attempt.score = score;
@@ -202,7 +217,9 @@ export const submitAttempt = async (req, res) => {
         totalPoints: attempt.totalPoints,
         percentage: attempt.totalPoints
           ? Math.round(
-              (attempt.score / attempt.totalPoints) * 100
+              (attempt.score /
+                attempt.totalPoints) *
+                100
             )
           : 0,
         answers: attempt.answers
@@ -210,6 +227,7 @@ export const submitAttempt = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: error.message
     });
@@ -240,29 +258,41 @@ export const getAttemptResult = async (req, res) => {
         title: quiz.title,
         quizId: quiz.quizId,
         allowRetakes: quiz.allowRetakes,
-        questions: quiz.questions.map(question => ({
-          _id: question._id,
-          type: question.type,
-          question: question.question,
-          options: question.options,
-          correctAnswer: question.correctAnswer,
-          points: question.points
-        }))
+
+        questions: quiz.questions.map(
+          question => ({
+            _id: question._id,
+            type: question.type,
+            question: question.question,
+            options: question.options,
+
+            correctAnswer:
+              question.correctAnswer,
+
+            points: question.points
+          })
+        )
       },
+
       result: {
         attemptId: attempt._id,
         score: attempt.score,
         totalPoints: attempt.totalPoints,
+
         percentage: attempt.totalPoints
           ? Math.round(
-              (attempt.score / attempt.totalPoints) * 100
+              (attempt.score /
+                attempt.totalPoints) *
+                100
             )
           : 0,
+
         answers: attempt.answers
       }
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: error.message
     });
@@ -273,7 +303,9 @@ export const getLeaderboard = async (req, res) => {
   try {
     const { quizId } = req.params;
 
-    const quiz = await Quiz.findOne({ quizId });
+    const quiz = await Quiz.findOne({
+      quizId
+    });
 
     if (!quiz) {
       return res.status(404).json({
@@ -292,48 +324,73 @@ export const getLeaderboard = async (req, res) => {
       });
 
     res.json({
-      leaderboard: attempts.map((attempt, index) => ({
-        rank: index + 1,
-        name: attempt.user?.name || "Unknown",
-        score: attempt.score,
-        totalPoints: attempt.totalPoints,
-        percentage: attempt.totalPoints
-          ? Math.round(
-              (attempt.score / attempt.totalPoints) * 100
-            )
-          : 0,
-        completedAt: attempt.completedAt
-      }))
+      leaderboard: attempts.map(
+        (attempt, index) => ({
+          rank: index + 1,
+          name:
+            attempt.user?.name ||
+            "Unknown",
+          score: attempt.score,
+          totalPoints:
+            attempt.totalPoints,
+
+          percentage:
+            attempt.totalPoints
+              ? Math.round(
+                  (attempt.score /
+                    attempt.totalPoints) *
+                    100
+                )
+              : 0,
+
+          completedAt:
+            attempt.completedAt
+        })
+      )
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: error.message
     });
   }
 };
 
-export const getMyAttempts = async (req, res) => {
+export const getMyAttempts = async (
+  req,
+  res
+) => {
   try {
-    const attempts = await QuizAttempt.find({
-      user: req.user._id,
-      completed: true
-    })
-      .populate("quiz", "title quizId allowRetakes")
-      .sort({ completedAt: -1 });
+    const attempts =
+      await QuizAttempt.find({
+        user: req.user._id,
+        completed: true
+      })
+        .populate(
+          "quiz",
+          "title quizId allowRetakes"
+        )
+        .sort({
+          completedAt: -1
+        });
 
     res.json({
       attempts
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: error.message
     });
   }
 };
 
-export const getQuizAnalytics = async (req, res) => {
+export const getQuizAnalytics = async (
+  req,
+  res
+) => {
   try {
     const { quizId } = req.params;
 
@@ -344,22 +401,28 @@ export const getQuizAnalytics = async (req, res) => {
 
     if (!quiz) {
       return res.status(404).json({
-        message: "Quiz not found or you are not the creator"
+        message:
+          "Quiz not found or you are not the creator"
       });
     }
 
-    const attempts = await QuizAttempt.find({
-      quiz: quiz._id,
-      completed: true
-    }).sort({
-      completedAt: 1
-    });
+    const attempts =
+      await QuizAttempt.find({
+        quiz: quiz._id,
+        completed: true
+      }).sort({
+        completedAt: 1
+      });
 
-    const totalAttempts = attempts.length;
+    const totalAttempts =
+      attempts.length;
 
-    const uniqueParticipants = new Set(
-      attempts.map(attempt => attempt.user.toString())
-    ).size;
+    const uniqueParticipants =
+      new Set(
+        attempts.map(attempt =>
+          attempt.user.toString()
+        )
+      ).size;
 
     if (totalAttempts === 0) {
       return res.json({
@@ -368,21 +431,28 @@ export const getQuizAnalytics = async (req, res) => {
             title: quiz.title,
             quizId: quiz.quizId
           },
+
           totalAttempts: 0,
           uniqueParticipants: 0,
           averageScore: 0,
           averagePercentage: 0,
           highestPercentage: 0,
           averageTime: 0,
-          questionAnalytics: quiz.questions.map(
-            (question, index) => ({
-              questionNumber: index + 1,
-              questionId: question._id,
-              accuracy: 0,
-              averageTime: 0,
-              pointsPossible: question.points
-            })
-          ),
+
+          questionAnalytics:
+            quiz.questions.map(
+              (question, index) => ({
+                questionNumber:
+                  index + 1,
+                questionId:
+                  question._id,
+                accuracy: 0,
+                averageTime: 0,
+                pointsPossible:
+                  question.points
+              })
+            ),
+
           scoreDistribution: [
             {
               range: "0-39%",
@@ -405,82 +475,109 @@ export const getQuizAnalytics = async (req, res) => {
       });
     }
 
-    const totalScore = attempts.reduce(
-      (sum, attempt) => sum + attempt.score,
-      0
-    );
-
-    const totalPercentage = attempts.reduce(
-      (sum, attempt) =>
-        sum +
-        (attempt.totalPoints
-          ? (attempt.score / attempt.totalPoints) * 100
-          : 0),
-      0
-    );
-
-    const highestPercentage = Math.max(
-      ...attempts.map(attempt =>
-        attempt.totalPoints
-          ? (attempt.score / attempt.totalPoints) * 100
-          : 0
-      )
-    );
-
-    const totalTimes = attempts.map(attempt =>
-      attempt.answers.reduce(
-        (sum, answer) =>
-          sum + (answer.timeTaken || 0),
+    const totalScore =
+      attempts.reduce(
+        (sum, attempt) =>
+          sum + attempt.score,
         0
-      )
-    );
+      );
+
+    const totalPercentage =
+      attempts.reduce(
+        (sum, attempt) =>
+          sum +
+          (attempt.totalPoints
+            ? (attempt.score /
+                attempt.totalPoints) *
+              100
+            : 0),
+        0
+      );
+
+    const highestPercentage =
+      Math.max(
+        ...attempts.map(attempt =>
+          attempt.totalPoints
+            ? (attempt.score /
+                attempt.totalPoints) *
+              100
+            : 0
+        )
+      );
+
+    const totalTimes =
+      attempts.map(attempt =>
+        attempt.answers.reduce(
+          (sum, answer) =>
+            sum +
+            (answer.timeTaken || 0),
+          0
+        )
+      );
 
     const averageTime =
       totalTimes.reduce(
-        (sum, time) => sum + time,
+        (sum, time) =>
+          sum + time,
         0
       ) / totalAttempts;
 
     const questionAnalytics =
       quiz.questions.map(
         (question, index) => {
-          const questionAnswers = attempts
-            .flatMap(attempt => attempt.answers)
-            .filter(
-              answer =>
-                answer.questionId.toString() ===
-                question._id.toString()
-            );
+          const questionAnswers =
+            attempts
+              .flatMap(
+                attempt =>
+                  attempt.answers
+              )
+              .filter(
+                answer =>
+                  answer.questionId
+                    .toString() ===
+                  question._id.toString()
+              );
 
           const correctAnswers =
             questionAnswers.filter(
-              answer => answer.isCorrect
+              answer =>
+                answer.isCorrect
             ).length;
 
           const totalTime =
             questionAnswers.reduce(
               (sum, answer) =>
-                sum + (answer.timeTaken || 0),
+                sum +
+                (answer.timeTaken || 0),
               0
             );
 
           return {
-            questionNumber: index + 1,
-            questionId: question._id,
-            accuracy: questionAnswers.length
-              ? Math.round(
-                  (correctAnswers /
-                    questionAnswers.length) *
-                    100
-                )
-              : 0,
-            averageTime: questionAnswers.length
-              ? Math.round(
-                  totalTime /
-                    questionAnswers.length
-                )
-              : 0,
-            pointsPossible: question.points
+            questionNumber:
+              index + 1,
+
+            questionId:
+              question._id,
+
+            accuracy:
+              questionAnswers.length
+                ? Math.round(
+                    (correctAnswers /
+                      questionAnswers.length) *
+                      100
+                  )
+                : 0,
+
+            averageTime:
+              questionAnswers.length
+                ? Math.round(
+                    totalTime /
+                      questionAnswers.length
+                  )
+                : 0,
+
+            pointsPossible:
+              question.points
           };
         }
       );
@@ -529,32 +626,126 @@ export const getQuizAnalytics = async (req, res) => {
           title: quiz.title,
           quizId: quiz.quizId
         },
+
         totalAttempts,
         uniqueParticipants,
+
         averageScore: Number(
           (
             totalScore /
             totalAttempts
           ).toFixed(1)
         ),
-        averagePercentage: Math.round(
-          totalPercentage /
-            totalAttempts
-        ),
-        highestPercentage: Math.round(
-          highestPercentage
-        ),
-        averageTime: Math.round(
-          averageTime
-        ),
+
+        averagePercentage:
+          Math.round(
+            totalPercentage /
+              totalAttempts
+          ),
+
+        highestPercentage:
+          Math.round(
+            highestPercentage
+          ),
+
+        averageTime:
+          Math.round(
+            averageTime
+          ),
+
         questionAnalytics,
         scoreDistribution
       }
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: error.message
+    });
+  }
+};
+
+export const getAIExplanation = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    const { questionId } = req.body;
+
+    if (!questionId) {
+      return res.status(400).json({
+        message: "Question ID is required"
+      });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({
+        message: "AI service is not configured"
+      });
+    }
+
+    const attempt = await QuizAttempt.findOne({
+      _id: attemptId,
+      user: req.user._id,
+      completed: true
+    }).populate("quiz");
+
+    if (!attempt) {
+      return res.status(404).json({
+        message: "Completed attempt not found"
+      });
+    }
+
+    const question = attempt.quiz.questions.find(
+      item => item._id.toString() === questionId
+    );
+
+    if (!question) {
+      return res.status(404).json({
+        message: "Question not found"
+      });
+    }
+
+    const submitted = attempt.answers.find(
+      item => item.questionId.toString() === questionId
+    );
+
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    });
+
+    const response = await groq.chat.completions.create({
+      model: "openai/gpt-oss-120b",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful quiz tutor. Explain the correct answer clearly in simple language. If the learner's answer is wrong, explain their mistake constructively. Mention why other options are incorrect when options are provided. Do not invent facts. Keep the explanation concise."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            question: question.question,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            learnerAnswer: submitted?.answer ?? "Not answered",
+            isCorrect: submitted?.isCorrect ?? false
+          })
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 350
+    });
+
+    res.json({
+      explanation:
+        response.choices[0]?.message?.content ||
+        "No explanation was returned."
+    });
+  } catch (error) {
+    console.error("AI explanation error:", error.message);
+
+    res.status(500).json({
+      message: "Unable to generate an explanation right now"
     });
   }
 };

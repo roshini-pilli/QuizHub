@@ -1,5 +1,5 @@
 import Quiz from "../models/Quiz.js";
-
+import Groq from "groq-sdk";
 const generateQuizId = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
@@ -337,6 +337,120 @@ export const getMyQuiz = async (req, res) => {
     console.error(error);
     res.status(500).json({
       message: error.message
+    });
+  }
+};
+
+export const generateAIQuestions = async (req, res) => {
+  try {
+    const { topic, difficulty, count } = req.body;
+
+    if (!topic?.trim()) {
+      return res.status(400).json({
+        message: "Please enter a topic"
+      });
+    }
+
+    const levels = ["easy", "medium", "hard"];
+    const number = Number(count);
+
+    if (!levels.includes(difficulty)) {
+      return res.status(400).json({
+        message: "Invalid difficulty"
+      });
+    }
+
+    if (![5, 10, 15].includes(number)) {
+      return res.status(400).json({
+        message: "Question count must be 5, 10, or 15"
+      });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({
+        message: "AI service is not configured"
+      });
+    }
+
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    });
+
+    const completion = await groq.chat.completions.create({
+      model: "openai/gpt-oss-120b",
+      temperature: 0.4,
+      messages: [
+        {
+          role: "system",
+          content: `Generate educational multiple-choice quiz questions.
+Return only valid JSON in this format:
+{"questions":[{"question":"Question text","options":["Option A","Option B","Option C","Option D"],"correctAnswer":"Option A"}]}
+Generate exactly the requested number of questions.
+Each question must have four distinct options.
+The correctAnswer must exactly match one option.
+Do not include explanations or markdown.
+Avoid ambiguous questions and duplicate questions.`
+        },
+        {
+          role: "user",
+          content: `Topic: ${topic.trim()}
+Difficulty: ${difficulty}
+Number of questions: ${number}`
+        }
+      ],
+      response_format: {
+        type: "json_object"
+      }
+    });
+
+    const content = completion.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("The AI returned an empty response");
+    }
+
+    const parsed = JSON.parse(content);
+    const questions = parsed.questions;
+
+    if (!Array.isArray(questions) || questions.length !== number) {
+      throw new Error("The AI did not generate the requested number of questions");
+    }
+
+    const validated = questions.map((question) => {
+      const text = String(question.question || "").trim();
+      const options = Array.isArray(question.options)
+        ? question.options.map(option => String(option).trim())
+        : [];
+      const correctAnswer = String(question.correctAnswer || "").trim();
+
+      if (
+        !text ||
+        options.length !== 4 ||
+        options.some(option => !option) ||
+        new Set(options.map(option => option.toLowerCase())).size !== 4 ||
+        !options.includes(correctAnswer)
+      ) {
+        throw new Error("The AI generated an invalid question. Please try again.");
+      }
+
+      return {
+        type: "single",
+        question: text,
+        options,
+        correctAnswer,
+        points: 10
+      };
+    });
+
+    res.json({
+      message: "Questions generated successfully",
+      questions: validated
+    });
+  } catch (error) {
+    console.error("AI quiz generation error:", error.message);
+
+    res.status(500).json({
+      message: "Unable to generate questions right now. Please try again."
     });
   }
 };

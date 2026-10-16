@@ -10,7 +10,8 @@ import {
   Target,
   RotateCcw,
   Home,
-  BarChart3
+  BarChart3,
+  Sparkles
 } from "lucide-react";
 
 const Result = () => {
@@ -21,6 +22,9 @@ const Result = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [explanations, setExplanations] = useState({});
+  const [explanationLoading, setExplanationLoading] = useState({});
+  const [explanationErrors, setExplanationErrors] = useState({});
 
   const formatAnswer = answer => {
     if (answer === null || answer === undefined || answer === "") {
@@ -28,9 +32,7 @@ const Result = () => {
     }
 
     if (Array.isArray(answer)) {
-      return answer.length
-        ? answer.join(", ")
-        : "Not answered";
+      return answer.length ? answer.join(", ") : "Not answered";
     }
 
     if (typeof answer === "boolean") {
@@ -75,15 +77,64 @@ const Result = () => {
     fetchResult();
   }, [attemptId]);
 
+  const handleExplain = async questionId => {
+    const token = sessionStorage.getItem("quizhub_token");
+
+    if (!token) {
+      setExplanationErrors(prev => ({
+        ...prev,
+        [questionId]: "Please log in again to use AI explanations."
+      }));
+      return;
+    }
+
+    setExplanationLoading(prev => ({
+      ...prev,
+      [questionId]: true
+    }));
+
+    setExplanationErrors(prev => ({
+      ...prev,
+      [questionId]: ""
+    }));
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/attempts/${attemptId}/explanation`,
+        { questionId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      setExplanations(prev => ({
+        ...prev,
+        [questionId]: response.data.explanation
+      }));
+    } catch (err) {
+      setExplanationErrors(prev => ({
+        ...prev,
+        [questionId]:
+          err.response?.data?.message ||
+          "Unable to generate an explanation. Please try again."
+      }));
+    } finally {
+      setExplanationLoading(prev => ({
+        ...prev,
+        [questionId]: false
+      }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-sky-50 px-6 py-12 text-slate-900 dark:bg-slate-950 dark:text-white">
         <div className="mx-auto max-w-5xl">
           <div className="animate-pulse space-y-6">
             <div className="h-8 w-48 rounded-lg bg-sky-100 dark:bg-slate-800" />
-
             <div className="h-48 rounded-3xl bg-white dark:bg-slate-900" />
-
             <div className="h-64 rounded-3xl bg-white dark:bg-slate-900" />
           </div>
         </div>
@@ -95,19 +146,13 @@ const Result = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-sky-50 px-6 dark:bg-slate-950">
         <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <XCircle
-            className="mx-auto mb-4 text-red-500"
-            size={48}
-          />
-
+          <XCircle className="mx-auto mb-4 text-red-500" size={48} />
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Result unavailable
           </h1>
-
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
             {error || "We couldn't load this quiz result."}
           </p>
-
           <Link
             to="/dashboard"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-600"
@@ -121,9 +166,7 @@ const Result = () => {
   }
 
   const percentage = result.totalPoints
-    ? Math.round(
-        (result.score / result.totalPoints) * 100
-      )
+    ? Math.round((result.score / result.totalPoints) * 100)
     : 0;
 
   const correctCount = result.answers.filter(
@@ -135,8 +178,7 @@ const Result = () => {
   ).length;
 
   const totalTime = result.answers.reduce(
-    (sum, answer) =>
-      sum + (answer.timeTaken || 0),
+    (sum, answer) => sum + (answer.timeTaken || 0),
     0
   );
 
@@ -145,22 +187,10 @@ const Result = () => {
     : 0;
 
   const getPerformanceMessage = () => {
-    if (percentage >= 90) {
-      return "Excellent performance!";
-    }
-
-    if (percentage >= 75) {
-      return "Great work!";
-    }
-
-    if (percentage >= 60) {
-      return "Good effort!";
-    }
-
-    if (percentage >= 40) {
-      return "Keep practicing!";
-    }
-
+    if (percentage >= 90) return "Excellent performance!";
+    if (percentage >= 75) return "Great work!";
+    if (percentage >= 60) return "Good effort!";
+    if (percentage >= 40) return "Keep practicing!";
     return "There's room to improve!";
   };
 
@@ -184,7 +214,6 @@ const Result = () => {
             <p className="text-sm font-semibold text-slate-900 dark:text-white">
               {quiz.title}
             </p>
-
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Quiz ID: {quiz.quizId}
             </p>
@@ -197,11 +226,9 @@ const Result = () => {
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-sky-500">
             Quiz Review
           </p>
-
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             {getPerformanceMessage()}
           </h1>
-
           <p className="mt-2 text-slate-500 dark:text-slate-400">
             Here is a detailed breakdown of your performance.
           </p>
@@ -214,7 +241,6 @@ const Result = () => {
                 <span className="text-3xl font-bold text-sky-600 dark:text-sky-400">
                   {percentage}%
                 </span>
-
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   Score
                 </span>
@@ -222,16 +248,11 @@ const Result = () => {
 
               <div className="flex-1 text-center sm:text-left">
                 <div className="flex items-center justify-center gap-2 sm:justify-start">
-                  <Trophy
-                    size={22}
-                    className="text-amber-500"
-                  />
-
+                  <Trophy size={22} className="text-amber-500" />
                   <h2 className="text-xl font-bold">
                     Performance Overview
                   </h2>
                 </div>
-
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                   You scored{" "}
                   <span className="font-semibold text-slate-800 dark:text-white">
@@ -249,60 +270,32 @@ const Result = () => {
 
           <div className="grid grid-cols-2 divide-x divide-y border-b border-slate-200 dark:divide-slate-800 dark:border-slate-800 sm:grid-cols-4 sm:divide-y-0">
             <div className="p-5 text-center">
-              <Target
-                className="mx-auto mb-2 text-sky-500"
-                size={21}
-              />
-
-              <p className="text-2xl font-bold">
-                {result.score}
-              </p>
-
+              <Target className="mx-auto mb-2 text-sky-500" size={21} />
+              <p className="text-2xl font-bold">{result.score}</p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Points
               </p>
             </div>
 
             <div className="p-5 text-center">
-              <CheckCircle2
-                className="mx-auto mb-2 text-emerald-500"
-                size={21}
-              />
-
-              <p className="text-2xl font-bold">
-                {correctCount}
-              </p>
-
+              <CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={21} />
+              <p className="text-2xl font-bold">{correctCount}</p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Correct
               </p>
             </div>
 
             <div className="p-5 text-center">
-              <XCircle
-                className="mx-auto mb-2 text-red-500"
-                size={21}
-              />
-
-              <p className="text-2xl font-bold">
-                {incorrectCount}
-              </p>
-
+              <XCircle className="mx-auto mb-2 text-red-500" size={21} />
+              <p className="text-2xl font-bold">{incorrectCount}</p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Incorrect
               </p>
             </div>
 
             <div className="p-5 text-center">
-              <Clock3
-                className="mx-auto mb-2 text-sky-500"
-                size={21}
-              />
-
-              <p className="text-2xl font-bold">
-                {averageTime}s
-              </p>
-
+              <Clock3 className="mx-auto mb-2 text-sky-500" size={21} />
+              <p className="text-2xl font-bold">{averageTime}s</p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Avg. Time
               </p>
@@ -345,35 +338,25 @@ const Result = () => {
             <p className="text-sm font-semibold uppercase tracking-wider text-sky-500">
               Review
             </p>
-
-            <h2 className="mt-1 text-2xl font-bold">
-              Answer Breakdown
-            </h2>
+            <h2 className="mt-1 text-2xl font-bold">Answer Breakdown</h2>
           </div>
 
           <div className="space-y-5">
             {quiz.questions.map((question, index) => {
               const submittedAnswer = result.answers.find(
                 answer =>
-                  answer.questionId.toString() ===
-                  question._id.toString()
+                  answer.questionId.toString() === question._id.toString()
               );
 
-              const userAnswer =
-                submittedAnswer?.answer ?? null;
-
-              const isCorrect =
-                submittedAnswer?.isCorrect ?? false;
-
-              const pointsEarned =
-                submittedAnswer?.pointsEarned ?? 0;
-
-              const timeTaken =
-                submittedAnswer?.timeTaken ?? 0;
+              const userAnswer = submittedAnswer?.answer ?? null;
+              const isCorrect = submittedAnswer?.isCorrect ?? false;
+              const pointsEarned = submittedAnswer?.pointsEarned ?? 0;
+              const timeTaken = submittedAnswer?.timeTaken ?? 0;
+              const questionId = question._id.toString();
 
               return (
                 <article
-                  key={question._id}
+                  key={questionId}
                   className="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"
                 >
                   <div className="flex items-start gap-4">
@@ -395,7 +378,6 @@ const Result = () => {
                       <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                         Question {index + 1}
                       </p>
-
                       <h3 className="mt-1 text-lg font-semibold leading-relaxed text-slate-900 dark:text-white">
                         {question.question}
                       </h3>
@@ -419,7 +401,6 @@ const Result = () => {
                       >
                         Your Answer
                       </p>
-
                       <p
                         className={`mt-2 break-words text-base font-semibold ${
                           isCorrect
@@ -435,7 +416,6 @@ const Result = () => {
                       <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
                         Correct Answer
                       </p>
-
                       <p className="mt-2 break-words text-base font-semibold text-sky-700 dark:text-sky-300">
                         {formatAnswer(question.correctAnswer)}
                       </p>
@@ -447,7 +427,6 @@ const Result = () => {
                       <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Points earned
                       </p>
-
                       <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
                         {pointsEarned} / {question.points}
                       </p>
@@ -457,11 +436,43 @@ const Result = () => {
                       <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         Time taken
                       </p>
-
                       <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
                         {timeTaken}s
                       </p>
                     </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <button
+                      onClick={() => handleExplain(questionId)}
+                      disabled={!!explanationLoading[questionId]}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Sparkles size={17} />
+                      {explanationLoading[questionId]
+                        ? "Generating explanation..."
+                        : explanations[questionId]
+                          ? "Generate Again"
+                          : "Explain with AI"}
+                    </button>
+
+                    {explanationErrors[questionId] && (
+                      <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+                        {explanationErrors[questionId]}
+                      </p>
+                    )}
+
+                    {explanations[questionId] && (
+                      <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+                        <h4 className="flex items-center gap-2 font-semibold text-sky-700 dark:text-sky-300">
+                          <Sparkles size={18} />
+                          AI Explanation
+                        </h4>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
+                          {explanations[questionId]}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </article>
               );
@@ -476,10 +487,7 @@ const Result = () => {
             </div>
 
             <div>
-              <h2 className="text-lg font-bold">
-                Speed Analysis
-              </h2>
-
+              <h2 className="text-lg font-bold">Speed Analysis</h2>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 You spent an average of{" "}
                 <span className="font-semibold text-slate-800 dark:text-white">
@@ -495,12 +503,7 @@ const Result = () => {
               className="h-full rounded-full bg-sky-500 transition-all"
               style={{
                 width: `${Math.min(
-                  (averageTime /
-                    Math.max(
-                      quiz.timePerQuestion || 20,
-                      1
-                    )) *
-                    100,
+                  (averageTime / Math.max(quiz.timePerQuestion || 20, 1)) * 100,
                   100
                 )}%`
               }}
@@ -509,10 +512,7 @@ const Result = () => {
 
           <div className="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>Faster</span>
-
-            <span>
-              {quiz.timePerQuestion || 20}s allowed
-            </span>
+            <span>{quiz.timePerQuestion || 20}s allowed</span>
           </div>
         </section>
       </main>

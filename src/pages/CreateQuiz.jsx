@@ -5,6 +5,7 @@ import {
   Check,
   Copy,
   Plus,
+  Sparkles,
   Trash2,
   X
 } from "lucide-react";
@@ -31,6 +32,12 @@ function CreateQuiz({ darkMode, setDarkMode }) {
   const [error, setError] = useState("");
   const [createdQuiz, setCreatedQuiz] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiDifficulty, setAiDifficulty] = useState("medium");
+  const [aiQuestionCount, setAiQuestionCount] = useState("5");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiTopicError, setAiTopicError] = useState("");
+  const [aiQuestionCountError, setAiQuestionCountError] = useState("");
 
   const showError = message => {
     setError(message);
@@ -354,6 +361,88 @@ function CreateQuiz({ darkMode, setDarkMode }) {
       }, 2000);
     } catch {
       setError("Unable to copy Quiz ID.");
+    }
+  };
+
+  const handleGenerateAIQuestions = async () => {
+    setError("");
+    setAiTopicError("");
+    setAiQuestionCountError("");
+
+    let isValid = true;
+    if (!aiTopic.trim()) {
+      setAiTopicError("Please enter a topic.");
+      isValid = false;
+    }
+
+    const questionCount = Number(aiQuestionCount);
+    if (aiQuestionCount.trim() === "" || !Number.isInteger(questionCount) || questionCount < 1 || questionCount > 100) {
+      setAiQuestionCountError("Enter a whole number from 1 to 100.");
+      isValid = false;
+    }
+
+    if (!isValid) return;
+
+    const token = sessionStorage.getItem("quizhub_token");
+    if (!token) {
+      showError("Please log in again to generate questions.");
+      return;
+    }
+
+    try {
+      setAiGenerating(true);
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/quizzes/generate-ai`,
+        {
+          topic: aiTopic.trim(),
+          difficulty: aiDifficulty,
+          count: questionCount
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const generatedQuestions = response.data.questions;
+      if (!Array.isArray(generatedQuestions) || generatedQuestions.length !== questionCount) {
+        showError("AI returned an unexpected number of questions. Please try again.");
+        return;
+      }
+
+      const formattedQuestions = generatedQuestions.map(question => {
+        const options = Array.isArray(question.options)
+          ? question.options.map(option => String(option).trim())
+          : [];
+        const correctAnswer = String(question.correctAnswer ?? "").trim();
+
+        if (
+          !question.question?.trim() ||
+          options.length !== 4 ||
+          options.some(option => !option) ||
+          new Set(options).size !== options.length ||
+          !options.includes(correctAnswer)
+        ) {
+          throw new Error("AI returned an invalid question. Please generate the questions again.");
+        }
+
+        return {
+          type: "single",
+          question: question.question.trim(),
+          options,
+          correctAnswer,
+          points: 10
+        };
+      });
+
+      setQuestions(formattedQuestions);
+      if (!title.trim()) setTitle(`${aiTopic.trim()} Quiz`);
+      setError("");
+    } catch (err) {
+      showError(
+        err.response?.data?.message ||
+        err.message ||
+        "Unable to generate questions. Please try again."
+      );
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -765,6 +854,53 @@ function CreateQuiz({ darkMode, setDarkMode }) {
               {error}
             </div>
           )}
+
+          <section className="mb-8 rounded-2xl border border-sky-200 bg-sky-50 p-6 dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-5 flex items-center gap-3">
+              <Sparkles className="h-6 w-6 text-sky-600 dark:text-sky-400" />
+              <div>
+                <h2 className="text-xl font-semibold text-slate-800 dark:text-white">AI Quiz Generator</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Generate editable multiple-choice questions from any topic.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Topic</label>
+                <input value={aiTopic} onChange={e => { setAiTopic(e.target.value); if (e.target.value.trim()) setAiTopicError(""); }} placeholder="e.g. Machine Learning" aria-invalid={Boolean(aiTopicError)} className={`w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:bg-slate-800 ${aiTopicError ? "border-red-500 dark:border-red-500" : "border-slate-300 dark:border-slate-700"}`} />
+                {aiTopicError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{aiTopicError}</p>}
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Difficulty</label>
+                <select value={aiDifficulty} onChange={e => setAiDifficulty(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-800">
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Number of questions</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={aiQuestionCount}
+                  onChange={e => { setAiQuestionCount(e.target.value); if (e.target.value.trim() !== "" && Number.isInteger(Number(e.target.value)) && Number(e.target.value) >= 1 && Number(e.target.value) <= 100) setAiQuestionCountError(""); }}
+                  placeholder="Enter number"
+                  aria-invalid={Boolean(aiQuestionCountError)}
+                  className={`w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 dark:bg-slate-800 ${aiQuestionCountError ? "border-red-500 dark:border-red-500" : "border-slate-300 dark:border-slate-700"}`}
+                />
+                {aiQuestionCountError ? <p className="mt-1 text-xs text-red-600 dark:text-red-400">{aiQuestionCountError}</p> : <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Enter 1–100 questions.</p>}
+              </div>
+            </div>
+
+            <button type="button" onClick={handleGenerateAIQuestions} disabled={aiGenerating} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <Sparkles className="h-4 w-4" />
+              {aiGenerating ? "Generating..." : "Generate with AI"}
+            </button>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Generated questions will be editable before you create the quiz.</p>
+          </section>
 
           <section className="rounded-[2rem] border border-sky-300 bg-white p-7 shadow-lg shadow-sky-300/20 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600 dark:text-sky-400">

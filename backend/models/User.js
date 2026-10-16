@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -27,6 +28,22 @@ const userSchema = new mongoose.Schema(
       default: null
     },
     otpExpiresAt: {
+      type: Date,
+      default: null
+    },
+    resetOtp: {
+      type: String,
+      default: null
+    },
+    resetOtpExpiresAt: {
+      type: Date,
+      default: null
+    },
+    resetTokenHash: {
+      type: String,
+      default: null
+    },
+    resetTokenExpiresAt: {
       type: Date,
       default: null
     }
